@@ -1,0 +1,11 @@
+{
+  "name": "auto-version-ci-cd",
+  "version": "0.0.0",
+  "description": "Exemplo mínimo para CI/CD e versionamento automático",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "author": "RCFurlan",
+  "license": "MIT"
+}
