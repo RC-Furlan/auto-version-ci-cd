@@ -1,0 +1,63 @@
+name: Auto version increment
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Prevent loop if last commit is from CI Bot
+        run: |
+          LAST_AUTHOR=$(git log -1 --pretty="%an")
+          echo "Last commit author: $LAST_AUTHOR"
+          if [ "$LAST_AUTHOR" = "CI Bot" ]; then
+            echo "Last commit was made by CI Bot — exiting to avoid loop."
+            exit 0
+          fi
+
+      - name: Read current version
+        id: readver
+        run: |
+          if [ ! -f version.txt ]; then echo "v0.0.0" > version.txt; fi
+          VER=$(cat version.txt | tr -d '[:space:]')
+          echo "current_version=$VER" >> $GITHUB_OUTPUT
+
+      - name: Increment version
+        id: bump
+        run: |
+          CUR=${{ steps.readver.outputs.current_version }}
+          N=${CUR#v}
+          IFS='.' read -r -a parts <<< "$N"
+          last_index=$(( ${#parts[@]} - 1 ))
+          parts[$last_index]=$(( ${parts[$last_index]} + 1 ))
+          NEW="${parts[0]}"
+          for i in $(seq 1 $last_index); do
+            NEW="$NEW.${parts[$i]}"
+          done
+          NEW="v$NEW"
+          echo "new_version=$NEW" >> $GITHUB_OUTPUT
+          echo "$NEW" > version.txt
+          echo "Bumped $CUR -> $NEW"
+
+      - name: Commit and push new version
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci-bot@example.com"
+          git add version.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: auto-increment version to ${{ steps.bump.outputs.new_version }}"
+            git push origin HEAD:main
+          else
+            echo "No changes to commit."
+          fi
